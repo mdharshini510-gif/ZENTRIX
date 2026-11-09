@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Sliders, Cpu, Shield, Sparkles, Check } from "lucide-react";
+import { Sliders, Sparkles, Check } from "lucide-react";
 
 export default function ModelSettingsPage() {
   const [minConfidence, setMinConfidence] = useState(85);
@@ -54,7 +54,7 @@ export default function ModelSettingsPage() {
               className="w-full accent-indigo-500 cursor-pointer"
             />
             <p className="text-[11px] text-slate-400">
-              Findings with model confidence below this score are flagged as "Needs Human Check" and never auto-block content.
+              Findings with model confidence below this score are flagged as &quot;Needs Human Check&quot; and never auto-block content.
             </p>
           </div>
 

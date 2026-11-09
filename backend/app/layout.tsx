@@ -8,7 +8,6 @@ import {
   BarChart3, 
   Sliders, 
   History, 
-  ExternalLink 
 } from "lucide-react";
 
 export const metadata: Metadata = {

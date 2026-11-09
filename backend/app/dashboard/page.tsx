@@ -2,10 +2,7 @@
 
 import React from "react";
 import { 
-  BarChart3, 
   TrendingUp, 
-  AlertTriangle, 
-  ShieldAlert, 
   Lightbulb, 
   CheckCircle2, 
   ArrowUpRight 

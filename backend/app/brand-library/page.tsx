@@ -6,8 +6,6 @@ import {
   FileText, 
   AlertCircle, 
   Plus, 
-  CheckCircle, 
-  Search, 
   Trash2, 
   ExternalLink 
 } from "lucide-react";

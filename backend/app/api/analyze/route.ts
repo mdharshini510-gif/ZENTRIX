@@ -11,6 +11,8 @@ const CANDIDATE_MODELS = [
   "gemini-1.5-flash-8b",
 ];
 
+type ParsedFinding = Partial<Pick<Finding, "ruleId" | "ruleCitation" | "category" | "severity" | "message" | "suggestedFix" | "confidence" | "boundingBox">>;
+
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
@@ -121,15 +123,15 @@ Bounding boxes must be percentages (0-100) for x, y, width, and height.
 
       if (responseText) {
         try {
-          const parsed = JSON.parse(responseText);
-          findings = parsed.map((item: any, idx: number) => ({
+          const parsed = JSON.parse(responseText) as ParsedFinding[];
+          findings = parsed.map((item, idx) => ({
             id: `f-${Date.now()}-${idx}`,
             ruleId: item.ruleId || "RULE-COMPLIANCE",
             ruleCitation: item.ruleCitation || "Brand Guidelines § General",
             category: item.category || "copy",
             severity: item.severity || "warning",
-            message: item.message,
-            suggestedFix: item.suggestedFix,
+            message: item.message || "Potential brand compliance issue detected.",
+            suggestedFix: item.suggestedFix || "Review this region against the active brand guidelines.",
             confidence: Number(item.confidence) || 0.92,
             boundingBox: item.boundingBox || { x: 10, y: 15, width: 40, height: 12 },
           }));
@@ -214,9 +216,10 @@ Bounding boxes must be percentages (0-100) for x, y, width, and height.
         findings,
       },
     });
-  } catch (fatalErr: any) {
+  } catch (fatalErr: unknown) {
+    const errorMessage = fatalErr instanceof Error ? fatalErr.message : "Internal analysis failure";
     return NextResponse.json(
-      { success: false, error: fatalErr?.message || "Internal analysis failure" },
+      { success: false, error: errorMessage },
       { status: 500 }
     );
   }

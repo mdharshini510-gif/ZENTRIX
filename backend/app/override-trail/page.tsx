@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { History, ShieldCheck, UserCheck, AlertTriangle } from "lucide-react";
+import { History, ShieldCheck, UserCheck } from "lucide-react";
 
 export default function OverrideTrailPage() {
   const overrides = [
@@ -68,7 +68,7 @@ export default function OverrideTrailPage() {
                   </div>
                   <span className="text-[10px] text-slate-500 font-mono block">{row.timestamp}</span>
                 </td>
-                <td className="p-4 text-slate-400 max-w-md italic">"{row.reason}"</td>
+                <td className="p-4 text-slate-400 max-w-md italic">&quot;{row.reason}&quot;</td>
                 <td className="p-4 text-right">
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                     <ShieldCheck className="w-3 h-3" /> {row.status}
