@@ -1,7 +1,9 @@
+
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI, Type } from "@google/genai";
 import { Finding, CheckReport } from "@/types/preflight";
 import { calculateRegionContrast } from "@/lib/checks/deterministicChecks";
+import { supabaseServer } from "@/lib/supabaseServer";
 
 const ai = new GoogleGenAI();
 
@@ -14,12 +16,17 @@ const CANDIDATE_MODELS = [
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
+
     const file =
       (formData.get("image") as File) ||
       (formData.get("file") as File) ||
       null;
-    const channel = (formData.get("channel") as string) || "Digital Creative";
-    const campaign = (formData.get("campaign") as string) || "General Campaign";
+
+    const channel =
+      (formData.get("channel") as string) || "Digital Creative";
+
+    const campaign =
+      (formData.get("campaign") as string) || "General Campaign";
 
     if (!file) {
       return NextResponse.json(
@@ -47,7 +54,7 @@ Bounding boxes must be percentages (0-100) for x, y, width, and height.
     let findings: Finding[] = [];
     let responseText: string | null = null;
 
-    // 1. Silent Multi-Model Execution (no error logs emitted to terminal)
+    // 1. Gemini AI Analysis
     if (process.env.GEMINI_API_KEY) {
       for (const modelName of CANDIDATE_MODELS) {
         try {
@@ -113,33 +120,41 @@ Bounding boxes must be percentages (0-100) for x, y, width, and height.
           });
 
           responseText = aiResponse.text?.trim() || null;
+
           if (responseText) break;
         } catch {
-          // Keep try/catch silent so no 503 or 404 stack traces print to terminal
+          // Try the next available model
         }
       }
 
       if (responseText) {
         try {
           const parsed = JSON.parse(responseText);
+
           findings = parsed.map((item: any, idx: number) => ({
             id: `f-${Date.now()}-${idx}`,
             ruleId: item.ruleId || "RULE-COMPLIANCE",
-            ruleCitation: item.ruleCitation || "Brand Guidelines § General",
+            ruleCitation:
+              item.ruleCitation || "Brand Guidelines § General",
             category: item.category || "copy",
             severity: item.severity || "warning",
             message: item.message,
             suggestedFix: item.suggestedFix,
             confidence: Number(item.confidence) || 0.92,
-            boundingBox: item.boundingBox || { x: 10, y: 15, width: 40, height: 12 },
+            boundingBox: item.boundingBox || {
+              x: 10,
+              y: 15,
+              width: 40,
+              height: 12,
+            },
           }));
         } catch {
-          // Silently fall back to deterministic pipeline if JSON parsing fails
+          // Continue with deterministic checks
         }
       }
     }
 
-    // 2. Deterministic Pixel Contrast Check Engine (Sharp + Colord)
+    // 2. Deterministic Contrast Check
     const primaryBox = findings[0]?.boundingBox || {
       x: 58.8,
       y: 38.6,
@@ -153,6 +168,7 @@ Bounding boxes must be percentages (0-100) for x, y, width, and height.
         primaryBox,
         "#FFFFFF"
       );
+
       if (!contrastResult.passesWcagAA) {
         findings.unshift({
           id: `f-contrast-${Date.now()}`,
@@ -169,10 +185,10 @@ Bounding boxes must be percentages (0-100) for x, y, width, and height.
         });
       }
     } catch {
-      // Silently proceed
+      // Continue if contrast checking fails
     }
 
-    // 3. Fallback deterministic findings if cloud calls are rate-limited or unavailable
+    // 3. Fallback Findings
     if (findings.length === 0) {
       findings.push({
         id: `f-palette-${Date.now()}`,
@@ -186,37 +202,75 @@ Bounding boxes must be percentages (0-100) for x, y, width, and height.
         suggestedFix:
           "Update button or accent fill to approved hex #4F46E5.",
         confidence: 0.95,
-        boundingBox: { x: 58.8, y: 38.6, width: 33.8, height: 49.8 },
+        boundingBox: {
+          x: 58.8,
+          y: 38.6,
+          width: 33.8,
+          height: 49.8,
+        },
       });
     }
 
     // 4. Scoring Engine
-    const hasBlocking = findings.some((f) => f.severity === "blocking");
+    const hasBlocking = findings.some(
+      (f) => f.severity === "blocking"
+    );
+
     const penalty = findings.reduce(
-      (acc, f) => acc + (f.severity === "blocking" ? 18 : 8),
+      (acc, f) =>
+        acc + (f.severity === "blocking" ? 18 : 8),
       0
     );
+
     const overallScore = Math.max(35, 100 - penalty);
+
     const status: CheckReport["status"] = hasBlocking
       ? "blocked"
       : overallScore < 80
       ? "review_required"
       : "passed";
 
-    return NextResponse.json({
-      success: true,
-      report: {
-        assetId: `ast_${Date.now()}`,
-        assetUrl: "",
+    // 5. Create Audit Report
+    const assetId = `ast_${Date.now()}`;
+
+    const reportData = {
+      assetId,
+      assetUrl: "",
+      score: overallScore,
+      overallScore,
+      status,
+      findings,
+    };
+
+    // 6. Save Audit Report to Supabase
+    const { error: dbError } = await supabaseServer
+      .from("audits")
+      .insert({
+        id: assetId,
         score: overallScore,
-        overallScore,
         status,
         findings,
-      },
+        created_at: new Date().toISOString(),
+      });
+
+    if (dbError) {
+      console.error("Supabase audit insert error:", dbError.message);
+    }
+
+    // 7. Return Report to Frontend
+    return NextResponse.json({
+      success: true,
+      report: reportData,
     });
+
   } catch (fatalErr: any) {
+    console.error("Analysis error:", fatalErr);
+
     return NextResponse.json(
-      { success: false, error: fatalErr?.message || "Internal analysis failure" },
+      {
+        success: false,
+        error: fatalErr?.message || "Internal analysis failure",
+      },
       { status: 500 }
     );
   }
