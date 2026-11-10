@@ -6,8 +6,6 @@ import {
   FileText, 
   AlertCircle, 
   Plus, 
-  CheckCircle, 
-  Search, 
   Trash2, 
   ExternalLink 
 } from "lucide-react";
@@ -35,11 +33,11 @@ export default function BrandLibraryPage() {
   ];
 
   return (
-    <div className="p-8 space-y-6 max-w-7xl">
+    <div className="app-page space-y-7">
       {/* Page Title */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Brand Asset & Rule Library</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-white">Brand Asset & Rule Library</h1>
           <p className="text-xs text-slate-400">Configured guidelines used for parallel vector-retrieval validation</p>
         </div>
         <button className="flex items-center gap-2 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow-lg shadow-indigo-600/20 transition-all">
@@ -89,7 +87,7 @@ export default function BrandLibraryPage() {
       {activeTab === "palette" && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {colors.map((c, i) => (
-            <div key={i} className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 space-y-3">
+            <div key={i} className="surface rounded-2xl p-4 space-y-3">
               <div
                 className="w-full h-24 rounded-xl shadow-inner border border-white/10"
                 style={{ backgroundColor: c.hex }}
@@ -109,7 +107,7 @@ export default function BrandLibraryPage() {
       )}
 
       {activeTab === "terms" && (
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+        <div className="surface rounded-2xl overflow-hidden shadow-xl">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-950/80 border-b border-slate-800 text-slate-400 font-mono text-[11px]">
               <tr>
@@ -138,7 +136,7 @@ export default function BrandLibraryPage() {
       )}
 
       {activeTab === "facts" && (
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+        <div className="surface rounded-2xl overflow-hidden shadow-xl">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-950/80 border-b border-slate-800 text-slate-400 font-mono text-[11px]">
               <tr>

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { History, ShieldCheck, UserCheck, AlertTriangle } from "lucide-react";
+import { History, ShieldCheck, UserCheck } from "lucide-react";
 
 export default function OverrideTrailPage() {
   const overrides = [
@@ -28,9 +28,9 @@ export default function OverrideTrailPage() {
   ];
 
   return (
-    <div className="p-8 space-y-6 max-w-7xl">
+    <div className="app-page space-y-7">
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-indigo-900 flex items-center gap-2">
+        <h1 className="text-2xl font-semibold tracking-tight text-white flex items-center gap-2">
           <History className="w-5 h-5 text-indigo-400" />
           <span>Governance & Override Trail</span>
         </h1>
@@ -39,7 +39,7 @@ export default function OverrideTrailPage() {
         </p>
       </div>
 
-      <div className="bg-slate-900/60 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+      <div className="surface rounded-2xl overflow-hidden shadow-xl">
         <table className="w-full text-left text-xs">
           <thead className="bg-slate-950/80 border-b border-slate-800 text-slate-400 font-mono text-[11px]">
             <tr>
@@ -68,7 +68,7 @@ export default function OverrideTrailPage() {
                   </div>
                   <span className="text-[10px] text-slate-500 font-mono block">{row.timestamp}</span>
                 </td>
-                <td className="p-4 text-slate-400 max-w-md italic">"{row.reason}"</td>
+                <td className="p-4 text-slate-400 max-w-md italic">&quot;{row.reason}&quot;</td>
                 <td className="p-4 text-right">
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                     <ShieldCheck className="w-3 h-3" /> {row.status}

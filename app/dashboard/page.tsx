@@ -4,8 +4,6 @@ import React from "react";
 import { 
   BarChart3, 
   TrendingUp, 
-  AlertTriangle, 
-  ShieldAlert, 
   Lightbulb, 
   CheckCircle2, 
   ArrowUpRight 
@@ -37,10 +35,11 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="p-8 space-y-6 max-w-7xl">
+    <div className="app-page space-y-7">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-100">Guideline Gap Analytics</h1>
+        <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.18em] text-violet-400 mb-2"><BarChart3 className="w-3.5 h-3.5" /> Governance intelligence</div>
+        <h1 className="text-2xl font-semibold tracking-tight text-white">Guideline Gap Analytics</h1>
         <p className="text-xs text-slate-400 dark:text-slate-400">
           Identifies frequently overridden rules to spot unclear brand guidelines and recommend rewordings
         </p>
@@ -48,7 +47,7 @@ export default function DashboardPage() {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 space-y-1">
+        <div className="surface rounded-2xl p-5 space-y-1">
           <span className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Total Audits</span>
           <p className="text-2xl font-bold font-mono text-white">1,482</p>
           <span className="text-[10px] text-emerald-400 flex items-center gap-1 font-medium">
@@ -56,7 +55,7 @@ export default function DashboardPage() {
           </span>
         </div>
 
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 space-y-1">
+        <div className="surface rounded-2xl p-5 space-y-1">
           <span className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">First-Pass Pass Rate</span>
           <p className="text-2xl font-bold font-mono text-white">74.2%</p>
           <span className="text-[10px] text-emerald-400 flex items-center gap-1 font-medium">
@@ -64,13 +63,13 @@ export default function DashboardPage() {
           </span>
         </div>
 
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 space-y-1">
+        <div className="surface rounded-2xl p-5 space-y-1">
           <span className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Manual Overrides</span>
           <p className="text-2xl font-bold font-mono text-amber-400">89</p>
           <span className="text-[10px] text-slate-400">Across 14 campaigns</span>
         </div>
 
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 space-y-1">
+        <div className="surface rounded-2xl p-5 space-y-1">
           <span className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Rules Requiring Clarification</span>
           <p className="text-2xl font-bold font-mono text-rose-400">3</p>
           <span className="text-[10px] text-rose-400 font-medium">High friction detected</span>
@@ -78,7 +77,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Guideline Gap Engine Cards */}
-      <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
+      <div className="surface rounded-2xl p-6 space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-sm font-bold text-white">High-Friction Guideline Detection</h2>

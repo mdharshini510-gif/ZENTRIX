@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Sliders, Cpu, Shield, Sparkles, Check } from "lucide-react";
+import { Sliders, Sparkles, Check } from "lucide-react";
 
 export default function ModelSettingsPage() {
   const [minConfidence, setMinConfidence] = useState(85);
@@ -14,9 +14,9 @@ export default function ModelSettingsPage() {
   };
 
   return (
-    <div className="p-8 space-y-6 max-w-4xl">
+    <div className="app-page space-y-7 max-w-5xl">
       <div>
-        <h1 className="text-xl font-bold tracking-tight text-indigo-900 flex items-center gap-2">
+        <h1 className="text-2xl font-semibold tracking-tight text-white flex items-center gap-2">
           <Sliders className="w-5 h-5 text-indigo-400" />
           <span>Model & Engine Settings</span>
         </h1>
@@ -25,7 +25,7 @@ export default function ModelSettingsPage() {
         </p>
       </div>
 
-      <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-6 shadow-xl">
+      <div className="surface rounded-2xl p-6 space-y-6 shadow-xl">
         <div className="space-y-4">
           <div className="flex items-center justify-between pb-4 border-b border-slate-800">
             <div>
@@ -54,7 +54,7 @@ export default function ModelSettingsPage() {
               className="w-full accent-indigo-500 cursor-pointer"
             />
             <p className="text-[11px] text-slate-400">
-              Findings with model confidence below this score are flagged as "Needs Human Check" and never auto-block content.
+              Findings with model confidence below this score are flagged as &quot;Needs Human Check&quot; and never auto-block content.
             </p>
           </div>
 
