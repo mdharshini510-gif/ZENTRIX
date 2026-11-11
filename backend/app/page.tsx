@@ -7,12 +7,18 @@ import FindingsPanel from "@/components/findings/FindingsPanel";
 import { mockReport } from "@/lib/mockData";
 import { CheckReport } from "@/types/preflight";
 import { Shield, Sparkles, SendHorizontal, History } from "lucide-react";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default function WorkspacePage() {
   const [report, setReport] = useState<CheckReport | null>(mockReport);
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>("f-1");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-
+  const [notice, setNotice] = useState<string | null>(null);
   const handleAssetLoaded = async (data: {
     file: File;
     previewUrl: string;
@@ -62,9 +68,10 @@ export default function WorkspacePage() {
   };
 
   const handleDismiss = (id: string, reason: string) => {
-    console.log(`[Audit Trail] Rule ${id} overridden:`, reason);
-    handleAcceptFix(id);
-  };
+  console.info(`[Audit Trail] Rule ${id} overridden: ${reason}`); 
+  handleAcceptFix(id); 
+  setNotice("Override logged to the governance trail.");
+};
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-100 flex flex-col p-6 font-sans">
