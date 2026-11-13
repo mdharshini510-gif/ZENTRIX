@@ -1,4 +1,4 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI, Type } from "@google/genai";
 import { Finding, CheckReport } from "@/types/preflight";
 import { calculateRegionContrast } from "@/lib/checks/deterministicChecks";
@@ -61,6 +61,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (!file.type.startsWith("image/")) {
+      return NextResponse.json(
+        { success: false, error: "Only image files are supported" },
+        { status: 400 }
+      );
+    }
     const imageBuffer = Buffer.from(await file.arrayBuffer());
     const base64Image = imageBuffer.toString("base64");
 
