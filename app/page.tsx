@@ -9,6 +9,7 @@ import { mockReport } from "@/lib/mockData";
 import { CheckReport } from "@/types/preflight";
 import { History, SendHorizontal, Shield, Sparkles, X } from "lucide-react";
 import { createClient } from "@supabase/supabase-js";
+import { convertPdfToImages } from "@/lib/pdfToImages";
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -22,13 +23,16 @@ export default function WorkspacePage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [currentAuditId, setCurrentAuditId] = useState<string | null>(null);
+  const [slides, setSlides] = useState<any[]>([]);
+  const [activeSlideIndex, setActiveSlideIndex] = useState<number>(0);
+  const [uploadProgress, setUploadProgress] = useState<string>("");
 
   // --- Audit History Drawer State ---
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [historyList, setHistoryList] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
- // Fetch past audit runs from Supabase (with fallback)
+  // Fetch past audit runs from Supabase (with fallback)
   async function handleOpenHistory() {
   setIsHistoryOpen(true);
   setLoadingHistory(true);
@@ -64,32 +68,80 @@ export default function WorkspacePage() {
     setIsHistoryOpen(false);
     setNotice(`Loaded audit run: ${audit.id.slice(0, 8)}...`);
   }
+  const handleSelectSlide = (index: number) => {
+    const targetSlide = slides[index];
+    if (!targetSlide) return;
+    setActiveSlideIndex(index);
+    setReport(targetSlide);
+    setCurrentAuditId(targetSlide.assetId ?? null);
+    setSelectedFindingId(targetSlide.findings?.[0]?.id ?? null);
+  };
 
   const handleAssetLoaded = async (data: { file: File; previewUrl: string; channel: string; campaign: string }) => {
     setIsAnalyzing(true);
     setNotice(null);
-    try {
-      const body = new FormData();
-      body.append("file", data.file);
-      body.append("channel", data.channel);
-      body.append("campaign", data.campaign);
-      const response = await fetch("/api/analyze", { method: "POST", body });
-      if (!response.ok) throw new Error("Analysis service unavailable");
-      const payload = await response.json();
-      if (!payload.success || !payload.report) throw new Error(payload.error || "Analysis failed");
-      const nextReport = { ...payload.report, assetUrl: data.previewUrl } as CheckReport;
-      setReport(nextReport);
-      setSelectedFindingId(nextReport.findings[0]?.id ?? null);
+    setSlides([]);
+    setActiveSlideIndex(0);
 
-      // Audit is already saved by /api/analyze
-      setCurrentAuditId(nextReport.assetId);
-      console.log("Saved Audit ID:", nextReport.assetId);
+    try {
+      const isPdf =
+        data.file.type === "application/pdf" || data.file.name.toLowerCase().endsWith(".pdf");
+      const filesToAudit = isPdf ? await convertPdfToImages(data.file) : [data.file];
+      const deckName = isPdf ? data.file.name : null;
+      const completedSlides: CheckReport[] = [];
+
+      for (let i = 0; i < filesToAudit.length; i++) {
+        const slideFile = filesToAudit[i];
+        const slidePreviewUrl = isPdf ? URL.createObjectURL(slideFile) : data.previewUrl;
+
+        setUploadProgress(
+          filesToAudit.length > 1
+            ? `Analyzing Slide ${i + 1} of ${filesToAudit.length}...`
+            : "Executing copy, visual, and cross-modal verification…"
+        );
+
+        const body = new FormData();
+        body.append("file", slideFile);
+        body.append("channel", data.channel);
+        body.append("campaign", data.campaign);
+        body.append("pageNumber", String(i + 1));
+        if (deckName) body.append("deckName", deckName);
+
+        const response = await fetch("/api/analyze", { method: "POST", body });
+        if (!response.ok) throw new Error("Analysis service unavailable");
+
+        const payload = await response.json();
+        if (!payload.success || !payload.report) throw new Error(payload.error || "Analysis failed");
+
+        const nextReport = {
+          ...payload.report,
+          assetUrl: slidePreviewUrl,
+          pageNumber: i + 1,
+          deckName,
+        } as CheckReport & { pageNumber?: number; deckName?: string | null };
+
+        completedSlides.push(nextReport);
+        setSlides([...completedSlides]);
+
+        // Show Slide 1 immediately while remaining slides finish
+        if (i === 0) {
+          setReport(nextReport);
+          setCurrentAuditId(nextReport.assetId);
+          setSelectedFindingId(nextReport.findings[0]?.id ?? null);
+        }
+      }
+
+      if (filesToAudit.length > 1) {
+        setNotice(`Completed preflight across ${filesToAudit.length} slides from ${data.file.name}.`);
+      }
+
     } catch {
       setReport({ ...mockReport, findings: [...mockReport.findings], assetUrl: data.previewUrl });
       setSelectedFindingId(mockReport.findings[0]?.id ?? null);
       setNotice("Live analysis is unavailable, so the local sample checks are shown.");
     } finally {
       setIsAnalyzing(false);
+      setUploadProgress("");
     }
   };
 
@@ -187,9 +239,11 @@ export default function WorkspacePage() {
 
       {isAnalyzing && (
         <div className="p-3.5 bg-violet-950/40 border border-violet-700/50 text-violet-300 rounded-xl text-center text-xs font-medium animate-pulse flex items-center justify-center gap-2">
-          <Sparkles className="w-4 h-4 animate-spin" /> Executing copy, visual, and cross-modal verification…
+          <Sparkles className="w-4 h-4 animate-spin" />{" "}
+          {uploadProgress || "Executing copy, visual, and cross-modal verification…"}
         </div>
       )}
+
 
       {notice && (
         <div role="status" className="p-3 bg-cyan-950/30 border border-cyan-800/50 text-cyan-300 rounded-xl text-xs">
@@ -198,89 +252,109 @@ export default function WorkspacePage() {
       )}
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
-        <div className="xl:col-span-8">
+        <div className="xl:col-span-8 space-y-3">
           <AnnotatedViewer
             imageUrl={report.assetUrl}
             findings={report.findings}
             selectedFindingId={selectedFindingId}
             onSelectFinding={setSelectedFindingId}
           />
-        </div>
-        <div className="xl:col-span-4">
-          <FindingsPanel
-            score={report.overallScore}
-            status={report.status}
-            findings={report.findings}
-            selectedFindingId={selectedFindingId}
-            onSelectFinding={setSelectedFindingId}
-            onAcceptFix={handleAcceptFix}
-            onDismiss={handleDismiss}
-          />
-        </div>
-      </div>
 
-      {/* --- Slide-Over Drawer for Audit History --- */}
-      {isHistoryOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm transition-opacity">
-          <div className="w-full max-w-sm h-full bg-[#0B0F19] border-l border-slate-800 p-6 flex flex-col shadow-2xl">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-              <h2 className="text-sm font-semibold tracking-wide text-slate-200 uppercase">
-                Audit History
-              </h2>
-              <button
-                type="button"
-                onClick={() => setIsHistoryOpen(false)}
-                className="text-slate-400 hover:text-white p-1 rounded transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto mt-4 space-y-3 pr-1">
-              {loadingHistory ? (
-                <div className="text-xs text-slate-400 text-center py-8">
-                  Loading records from Supabase...
-                </div>
-              ) : historyList.length === 0 ? (
-                <div className="text-xs text-slate-400 text-center py-8">
-                  No previous audit records found.
-                </div>
-              ) : (
-                historyList.map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => handleSelectHistoricalAudit(item)}
-                    className="p-3.5 rounded-lg border border-slate-800 bg-slate-900/50 hover:border-slate-700 hover:bg-slate-800/50 transition cursor-pointer"
+          {slides.length > 1 && (
+            <div className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/80 px-4 py-2.5">
+              <div className="flex items-center gap-2 overflow-x-auto">
+                {slides.map((slide: any, idx: number) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleSelectSlide(idx)}
+                    className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition ${activeSlideIndex === idx
+                        ? "bg-violet-600 text-white"
+                        : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+                      }`}
                   >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[11px] font-mono text-slate-400">
-                        {String(item.id).slice(0, 8)}...
-                      </span>
-                      <span
-                        className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider ${
-                          item.status === "blocked"
+                    <span>Slide {slide.pageNumber ?? idx + 1}</span>
+                    <span
+                      className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${slide.overallScore >= 85
+                          ? "bg-emerald-500/20 text-emerald-300"
+                          : "bg-rose-500/20 text-rose-300"
+                        }`}
+                    >
+                      {slide.overallScore}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              <span className="text-xs text-slate-400 shrink-0 ml-3">
+                Page {activeSlideIndex + 1} of {slides.length}
+              </span>
+            </div>
+          )}
+        </div>
+        </div>
+
+        {/* --- Slide-Over Drawer for Audit History --- */}
+        {isHistoryOpen && (
+          <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm transition-opacity">
+            <div className="w-full max-w-sm h-full bg-[#0B0F19] border-l border-slate-800 p-6 flex flex-col shadow-2xl">
+              <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+                <h2 className="text-sm font-semibold tracking-wide text-slate-200 uppercase">
+                  Audit History
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setIsHistoryOpen(false)}
+                  className="text-slate-400 hover:text-white p-1 rounded transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto mt-4 space-y-3 pr-1">
+                {loadingHistory ? (
+                  <div className="text-xs text-slate-400 text-center py-8">
+                    Loading records from Supabase...
+                  </div>
+                ) : historyList.length === 0 ? (
+                  <div className="text-xs text-slate-400 text-center py-8">
+                    No previous audit records found.
+                  </div>
+                ) : (
+                  historyList.map((item) => (
+                    <div
+                      key={item.id}
+                      onClick={() => handleSelectHistoricalAudit(item)}
+                      className="p-3.5 rounded-lg border border-slate-800 bg-slate-900/50 hover:border-slate-700 hover:bg-slate-800/50 transition cursor-pointer"
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[11px] font-mono text-slate-400">
+                          {String(item.id).slice(0, 8)}...
+                        </span>
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider ${item.status === "blocked"
                             ? "bg-red-500/20 text-red-400 border border-red-500/30"
                             : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                        }`}
-                      >
-                        {item.status}
-                      </span>
-                    </div>
+                            }`}
+                        >
+                          {item.status}
+                        </span>
+                      </div>
 
-                    <div className="text-xs font-semibold text-slate-200">
-                      Preflight Score: {item.score} / 100
-                    </div>
+                      <div className="text-xs font-semibold text-slate-200">
+                        Preflight Score: {item.score} / 100
+                      </div>
 
-                    <div className="text-[10px] text-slate-500 mt-1">
-                      {new Date(item.created_at).toLocaleString()}
+                      <div className="text-[10px] text-slate-500 mt-1">
+                        {new Date(item.created_at).toLocaleString()}
+                      </div>
                     </div>
-                  </div>
-                ))
-              )}
+                  ))
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
     </main>
   );
 }

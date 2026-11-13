@@ -13,10 +13,15 @@ export default function AssetUploader({ onAssetLoaded }: AssetUploaderProps) {
   const [dragActive, setDragActive] = useState(false);
 
   const handleFile = (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      alert("Please upload a valid image file (PNG, JPG, WebP).");
+    const isImage = file.type.startsWith("image/");
+    const isPdf =
+      file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+
+    if (!isImage && !isPdf) {
+      alert("Please upload a valid image (PNG, JPG, WebP) or multi-page PDF file.");
       return;
     }
+
     const previewUrl = URL.createObjectURL(file);
     onAssetLoaded({ file, previewUrl, channel, campaign });
   };
@@ -49,12 +54,12 @@ export default function AssetUploader({ onAssetLoaded }: AssetUploaderProps) {
         >
           <UploadCloud className="w-5 h-5 text-indigo-400 shrink-0" />
           <div className="text-xs">
-            <span className="font-semibold text-slate-200">Upload Creative</span> or drag & drop (PNG, JPG, WebP)
+            <span className="font-semibold text-slate-200">Upload Creative</span> or drag & drop (PNG, JPG, WebP, PDF)
           </div>
           <input
             id="file-input"
             type="file"
-            accept="image/*"
+            accept="image/png,image/jpeg,image/webp,application/pdf"
             className="hidden"
             onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
           />
@@ -82,8 +87,8 @@ export default function AssetUploader({ onAssetLoaded }: AssetUploaderProps) {
               type="text"
               value={campaign}
               onChange={(e) => setCampaign(e.target.value)}
-              placeholder="Campaign Tag..."
-              className="bg-transparent text-slate-200 placeholder-slate-500 focus:outline-none w-36"
+              placeholder="Campaign name"
+              className="bg-transparent text-slate-200 focus:outline-none w-36"
             />
           </div>
         </div>

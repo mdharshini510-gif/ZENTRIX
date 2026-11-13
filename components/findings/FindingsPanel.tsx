@@ -10,6 +10,7 @@ import {
   Sparkles,
   ArrowRight,
   Filter,
+  UserCheck,
 } from "lucide-react";
 
 interface FindingsPanelProps {
@@ -35,13 +36,20 @@ export default function FindingsPanel({
   const [dismissReason, setDismissReason] = useState<{ [key: string]: string }>({});
   const [activeDismissId, setActiveDismissId] = useState<string | null>(null);
 
-  const filteredFindings = findings.filter(
-    (f) => filterCategory === "all" || f.category === filterCategory
-  );
+  // Helper to identify findings routed to human compliance review (< 85% confidence)
+  const isHumanReviewFinding = (f: any) =>
+    f.status === "human_review" || (typeof f.confidence === "number" && f.confidence < 0.85);
+
+  const filteredFindings = findings.filter((f) => {
+    if (filterCategory === "all") return true;
+    if (filterCategory === "human_review") return isHumanReviewFinding(f);
+    return f.category === filterCategory;
+  });
 
   const copyCount = findings.filter((f) => f.category === "copy").length;
   const visualCount = findings.filter((f) => f.category === "visual").length;
   const crossModalCount = findings.filter((f) => f.category === "cross-modal").length;
+  const humanReviewCount = findings.filter((f) => isHumanReviewFinding(f)).length;
 
   return (
     <div className="flex flex-col h-[760px] bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-xl">
@@ -96,10 +104,10 @@ export default function FindingsPanel({
         </div>
       </div>
 
-      {/* Category Filter Tabs */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-slate-950/40 border-b border-slate-800/80 text-xs">
-        <div className="flex items-center gap-1 text-slate-400">
-          <Filter className="w-3.5 h-3.5 mr-1" />
+      {/* Category & Human-in-the-Loop Filter Tabs */}
+      <div className="flex items-center justify-between px-4 py-2.5 bg-slate-950/40 border-b border-slate-800/80 text-xs overflow-x-auto">
+        <div className="flex items-center gap-1 text-slate-400 shrink-0">
+          <Filter className="w-3.5 h-3.5 mr-1 shrink-0" />
           <button
             onClick={() => setFilterCategory("all")}
             className={`px-2 py-0.5 rounded-md font-medium transition-all ${
@@ -109,6 +117,21 @@ export default function FindingsPanel({
             }`}
           >
             All ({findings.length})
+          </button>
+          <button
+            onClick={() => setFilterCategory("human_review")}
+            className={`px-2 py-0.5 rounded-md font-medium transition-all flex items-center gap-1 ${
+              filterCategory === "human_review"
+                ? "bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/40"
+                : "hover:text-amber-300"
+            }`}
+          >
+            <span>Human Review</span>
+            {humanReviewCount > 0 && (
+              <span className="rounded-full bg-amber-500/30 px-1.5 text-[10px] font-bold text-amber-200">
+                {humanReviewCount}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setFilterCategory("cross-modal")}
@@ -149,13 +172,18 @@ export default function FindingsPanel({
           <div className="flex flex-col items-center justify-center h-full text-center py-16 text-slate-500">
             <FileCheck2 className="w-12 h-12 mb-3 text-emerald-500/80" />
             <p className="text-sm font-medium text-slate-300">Clean Preflight Report</p>
-            <p className="text-xs text-slate-500 mt-0.5 max-w-[200px]">
-              No compliance or visual rule violations in this category.
+            <p className="text-xs text-slate-500 mt-0.5 max-w-[220px]">
+              {filterCategory === "human_review"
+                ? "No low-confidence findings require manual compliance review."
+                : "No compliance or visual rule violations in this category."}
             </p>
           </div>
         ) : (
           filteredFindings.map((f) => {
             const isSelected = f.id === selectedFindingId;
+            const needsHumanReview = isHumanReviewFinding(f);
+            const confidencePct = Math.round((f.confidence ?? 1) * 100);
+
             return (
               <div
                 key={f.id}
@@ -166,23 +194,38 @@ export default function FindingsPanel({
                     : "bg-slate-900/60 border-slate-800 hover:border-slate-700/80 hover:bg-slate-800/40"
                 }`}
               >
-                <div className="flex items-center justify-between mb-2.5">
+                <div className="flex items-center justify-between gap-2 mb-2.5 flex-wrap">
                   <span className="font-mono text-[11px] px-2 py-0.5 rounded-md bg-slate-950/80 border border-slate-800 text-slate-300 font-medium">
                     {f.ruleId}
                   </span>
+
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-mono text-slate-400">
-                      {Math.round(f.confidence * 100)}% conf
-                    </span>
                     <span
-                      className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded ${
-                        f.severity === "blocking"
-                          ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
-                          : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                      className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                        needsHumanReview
+                          ? "bg-amber-950/70 text-amber-300 border border-amber-500/30"
+                          : "text-slate-400"
                       }`}
                     >
-                      {f.severity}
+                      {confidencePct}% conf
                     </span>
+
+                    {needsHumanReview ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                        <UserCheck className="w-3 h-3" />
+                        Human Verification Required
+                      </span>
+                    ) : (
+                      <span
+                        className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded ${
+                          f.severity === "blocking"
+                            ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                            : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                        }`}
+                      >
+                        {f.severity}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -224,7 +267,10 @@ export default function FindingsPanel({
                       </button>
                       <button
                         disabled={!dismissReason[f.id]}
-                        onClick={() => onDismiss(f.id, dismissReason[f.id])}
+                        onClick={() => {
+                          onDismiss(f.id, dismissReason[f.id]);
+                          setActiveDismissId(null);
+                        }}
                         className="text-xs px-3 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg font-medium disabled:opacity-40"
                       >
                         Log Override
