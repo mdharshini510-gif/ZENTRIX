@@ -14,7 +14,7 @@ import {
 
 interface FindingsPanelProps {
   score: number;
-  status: "passed" | "blocked" | "review_required";
+  status: "passed" | "blocked" | "review_required" | "human_review";
   findings: Finding[];
   selectedFindingId: string | null;
   onSelectFinding: (id: string) => void;

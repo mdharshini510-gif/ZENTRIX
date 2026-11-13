@@ -21,6 +21,6 @@ export interface CheckReport {
   assetId: string;
   assetUrl: string;
   overallScore: number;
-  status: 'passed' | 'blocked' | 'review_required';
+  status: 'passed' | 'blocked' | 'review_required' | 'human_review';
   findings: Finding[];
 }

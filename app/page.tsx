@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import Link from "next/link";
@@ -30,65 +30,25 @@ export default function WorkspacePage() {
 
  // Fetch past audit runs from Supabase (with fallback)
   async function handleOpenHistory() {
-    setIsHistoryOpen(true);
-    setLoadingHistory(true);
+  setIsHistoryOpen(true);
+  setLoadingHistory(true);
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://egkragrtaxujahptfrik.supabase.co";
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+  try {
+    const response = await fetch("/api/history");
+    const result = await response.json();
 
-    // 1. Fallback mock data if key is missing or invalid
-    const fallbackHistory = [
-      {
-        id: "audit-demo-101",
-        score: 84,
-        status: "blocked",
-        created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-        findings: mockReport.findings,
-      },
-      {
-        id: "audit-demo-102",
-        score: 96,
-        status: "passed",
-        created_at: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
-        findings: [],
-      },
-    ];
-
-    try {
-      if (!supabaseKey || supabaseKey.includes("placeholder")) {
-        setHistoryList(fallbackHistory);
-        return;
-      }
-
-      // Initialize client with explicit header configuration
-      const client = createClient(supabaseUrl, supabaseKey, {
-        global: {
-          headers: {
-            apikey: supabaseKey,
-          },
-        },
-      });
-
-      const { data, error } = await client
-        .from("audits")
-        .select("id, score, status, findings, created_at, asset_url")
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.warn("Supabase fetch returned error, using fallback history:", error.message);
-        setHistoryList(fallbackHistory);
-      } else if (data && data.length > 0) {
-        setHistoryList(data);
-      } else {
-        setHistoryList(fallbackHistory);
-      }
-    } catch (err) {
-      console.warn("Connection exception, loaded fallback:", err);
-      setHistoryList(fallbackHistory);
-    } finally {
-      setLoadingHistory(false);
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || "Failed to load audit history");
     }
+
+    setHistoryList(result.audits || []);
+  } catch (error) {
+    console.error("Audit history error:", error);
+    setHistoryList([]);
+  } finally {
+    setLoadingHistory(false);
   }
+}
 
   // Restore selected historical audit into studio view
   function handleSelectHistoricalAudit(audit: any) {
@@ -121,27 +81,9 @@ export default function WorkspacePage() {
       setReport(nextReport);
       setSelectedFindingId(nextReport.findings[0]?.id ?? null);
 
-      // Auto-save run to Supabase audits table
-      const { data: savedAudit, error: auditError } = await supabase
-        .from("audits")
-        .insert([
-          {
-        id: crypto.randomUUID(),
-            score: nextReport.overallScore,
-            status: nextReport.status,
-            findings: nextReport.findings,
-    
-          },
-        ])
-        .select("id")
-        .single();
-
-      if (auditError) {
-        console.error("Audit save failed:", auditError.message);
-      } else {
-        console.log("Saved Audit ID:", savedAudit.id);
-        setCurrentAuditId(savedAudit.id);
-      }
+      // Audit is already saved by /api/analyze
+      setCurrentAuditId(nextReport.assetId);
+      console.log("Saved Audit ID:", nextReport.assetId);
     } catch {
       setReport({ ...mockReport, findings: [...mockReport.findings], assetUrl: data.previewUrl });
       setSelectedFindingId(mockReport.findings[0]?.id ?? null);
@@ -245,7 +187,7 @@ export default function WorkspacePage() {
 
       {isAnalyzing && (
         <div className="p-3.5 bg-violet-950/40 border border-violet-700/50 text-violet-300 rounded-xl text-center text-xs font-medium animate-pulse flex items-center justify-center gap-2">
-          <Sparkles className="w-4 h-4 animate-spin" /> Executing copy, visual, and cross-modal verificationâ€¦
+          <Sparkles className="w-4 h-4 animate-spin" /> Executing copy, visual, and cross-modal verification…
         </div>
       )}
 
@@ -342,6 +284,8 @@ export default function WorkspacePage() {
     </main>
   );
 }
+
+
 
 
 
