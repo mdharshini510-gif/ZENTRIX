@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import Link from "next/link";
@@ -21,6 +21,7 @@ export default function WorkspacePage() {
   const [selectedFindingId, setSelectedFindingId] = useState<string | null>(mockReport.findings[0]?.id ?? null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [currentAuditId, setCurrentAuditId] = useState<string | null>(null);
 
   // --- Audit History Drawer State ---
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
@@ -121,14 +122,26 @@ export default function WorkspacePage() {
       setSelectedFindingId(nextReport.findings[0]?.id ?? null);
 
       // Auto-save run to Supabase audits table
-      await supabase.from("audits").insert([
-        {
-          score: nextReport.overallScore,
-          status: nextReport.status,
-          findings: nextReport.findings,
-          asset_url: data.previewUrl,
-        },
-      ]);
+      const { data: savedAudit, error: auditError } = await supabase
+        .from("audits")
+        .insert([
+          {
+        id: crypto.randomUUID(),
+            score: nextReport.overallScore,
+            status: nextReport.status,
+            findings: nextReport.findings,
+    
+          },
+        ])
+        .select("id")
+        .single();
+
+      if (auditError) {
+        console.error("Audit save failed:", auditError.message);
+      } else {
+        console.log("Saved Audit ID:", savedAudit.id);
+        setCurrentAuditId(savedAudit.id);
+      }
     } catch {
       setReport({ ...mockReport, findings: [...mockReport.findings], assetUrl: data.previewUrl });
       setSelectedFindingId(mockReport.findings[0]?.id ?? null);
@@ -155,28 +168,39 @@ export default function WorkspacePage() {
   const handleDismiss = async (id: string, reason: string) => {
     const findingToOverride = report.findings.find((f) => f.id === id);
 
-    try {
-      const { error } = await supabase.from("overrides").insert([
-        {
-          rule_id: findingToOverride?.ruleId || id,
-          rule_title: findingToOverride?.ruleId || "Brand Rule Override",
-          reviewer_name: "Admin Reviewer",
-          justification: reason || "User manual override in Audit Studio",
-          previous_score: report.overallScore,
-          status: "APPROVED",
-        },
-      ]);
-
-      if (error) {
-        console.error("Supabase insert failed:", error.message);
-      } else {
-        setNotice("Override logged to the governance trail.");
-      }
-    } catch (err) {
-      console.error("Unexpected error:", err);
+    if (!currentAuditId) {
+      setNotice("Please run the analysis again before logging an override.");
+      return;
     }
 
-    handleAcceptFix(id);
+    try {
+      const response = await fetch("/api/feedback", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          audit_id: currentAuditId,
+          rule_id: findingToOverride?.ruleId || id,
+          action_type: "overridden",
+          reason,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Unable to save override.");
+      }
+
+      setNotice("Override saved successfully.");
+      console.log("Feedback saved:", result);
+
+      handleAcceptFix(id);
+    } catch (error) {
+      console.error("Override save failed:", error);
+      setNotice("Unable to save override. Please try again.");
+    }
   };
 
   return (
@@ -221,7 +245,7 @@ export default function WorkspacePage() {
 
       {isAnalyzing && (
         <div className="p-3.5 bg-violet-950/40 border border-violet-700/50 text-violet-300 rounded-xl text-center text-xs font-medium animate-pulse flex items-center justify-center gap-2">
-          <Sparkles className="w-4 h-4 animate-spin" /> Executing copy, visual, and cross-modal verification…
+          <Sparkles className="w-4 h-4 animate-spin" /> Executing copy, visual, and cross-modal verificationâ€¦
         </div>
       )}
 
@@ -318,3 +342,9 @@ export default function WorkspacePage() {
     </main>
   );
 }
+
+
+
+
+
+
