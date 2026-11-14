@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState } from "react";
 import Link from "next/link";
@@ -83,7 +83,23 @@ export default function WorkspacePage() {
     setSlides([]);
     setActiveSlideIndex(0);
 
-    try {
+    // Show the uploaded image immediately.
+    if (data.file.type.startsWith("image/")) {
+      setReport({
+        ...mockReport,
+        findings: [],
+        assetUrl: data.previewUrl,
+      });
+    } else {
+      setReport({
+        ...mockReport,
+        findings: [],
+        assetUrl: "",
+      });
+    }
+    setSelectedFindingId(null);
+    setCurrentAuditId(null);
+try {
       const isPdf =
         data.file.type === "application/pdf" || data.file.name.toLowerCase().endsWith(".pdf");
       const filesToAudit = isPdf ? await convertPdfToImages(data.file) : [data.file];
@@ -97,7 +113,7 @@ export default function WorkspacePage() {
         setUploadProgress(
           filesToAudit.length > 1
             ? `Analyzing Slide ${i + 1} of ${filesToAudit.length}...`
-            : "Executing copy, visual, and cross-modal verification…"
+            : "Executing copy, visual, and cross-modal verificationâ€¦"
         );
 
         const body = new FormData();
@@ -240,7 +256,7 @@ export default function WorkspacePage() {
       {isAnalyzing && (
         <div className="p-3.5 bg-violet-950/40 border border-violet-700/50 text-violet-300 rounded-xl text-center text-xs font-medium animate-pulse flex items-center justify-center gap-2">
           <Sparkles className="w-4 h-4 animate-spin" />{" "}
-          {uploadProgress || "Executing copy, visual, and cross-modal verification…"}
+          {uploadProgress || "Executing copy, visual, and cross-modal verificationâ€¦"}
         </div>
       )}
 
@@ -292,6 +308,17 @@ export default function WorkspacePage() {
             </div>
           )}
         </div>
+        <div className="xl:col-span-4">
+          <FindingsPanel
+            score={report.overallScore}
+            status={report.status}
+            findings={report.findings}
+            selectedFindingId={selectedFindingId}
+            onSelectFinding={setSelectedFindingId}
+            onAcceptFix={handleAcceptFix}
+            onDismiss={handleDismiss}
+          />
+        </div>
         </div>
 
         {/* --- Slide-Over Drawer for Audit History --- */}
@@ -332,12 +359,27 @@ export default function WorkspacePage() {
                           {String(item.id).slice(0, 8)}...
                         </span>
                         <span
-                          className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider ${item.status === "blocked"
-                            ? "bg-red-500/20 text-red-400 border border-red-500/30"
-                            : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                            }`}
+                          className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider ${
+  item.status === "blocked"
+    ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30"
+    : item.status === "human_review"
+      ? "bg-purple-500/20 text-purple-400 border border-purple-500/30"
+      : item.status === "review_required"
+        ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+        : item.status === "passed"
+          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+          : "bg-slate-500/20 text-slate-400 border border-slate-500/30"
+}`}
                         >
-                          {item.status}
+                          {item.status === "blocked"
+  ? "Action Required"
+  : item.status === "human_review"
+    ? "Manual Verification"
+    : item.status === "review_required"
+      ? "Refinement Needed"
+      : item.status === "passed"
+        ? "Approved"
+        : item.status}
                         </span>
                       </div>
 
@@ -358,6 +400,9 @@ export default function WorkspacePage() {
     </main>
   );
 }
+
+
+
 
 
 

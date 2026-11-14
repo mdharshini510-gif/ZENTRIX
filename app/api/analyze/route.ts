@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI, Type } from "@google/genai";
 import { Finding, CheckReport } from "@/types/preflight";
 import { calculateRegionContrast } from "@/lib/checks/deterministicChecks";
@@ -8,9 +8,7 @@ const ai = new GoogleGenAI();
 const CONFIDENCE_THRESHOLD = 0.85;
 
 const CANDIDATE_MODELS = [
-  "gemini-1.5-flash",
-  "gemini-1.5-pro",
-  "gemini-1.5-flash-8b",
+  "gemini-3.8-flash",
 ];
 
 type ParsedFinding = Partial<
@@ -199,26 +197,23 @@ Bounding boxes must use percentages from 0 to 100.
     }
 
     // 2. Deterministic contrast analysis
-    const primaryBox = findings[0]?.boundingBox || {
-      x: 58.8,
-      y: 38.6,
-      width: 33.8,
-      height: 49.8,
-    };
+    const primaryBox = findings.find(
+  (finding) =>
+    finding.category === "copy" ||
+    finding.category === "cross-modal"
+)?.boundingBox;
 
     try {
-      const contrastResult = await calculateRegionContrast(
-        imageBuffer,
-        primaryBox,
-        "#FFFFFF"
-      );
+      const contrastResult = primaryBox
+  ? await calculateRegionContrast(imageBuffer, primaryBox, "#FFFFFF")
+  : null;
 
-      if (!contrastResult.passesWcagAA) {
+      if (contrastResult && !contrastResult.passesWcagAA) {
         findings.unshift({
           id: `f-contrast-${Date.now()}`,
           ruleId: "RULE-CONTRAST-04",
           ruleCitation:
-            "Brand Visual Guidelines §3.2: Minimum contrast ratio must be 4.5:1",
+            "Brand Visual Guidelines Â§3.2: Minimum contrast ratio must be 4.5:1",
           category: "cross-modal",
           severity: "blocking",
           message: `Calculated contrast ratio is ${contrastResult.contrastRatio}:1 (background: ${contrastResult.averageBgHex}), below WCAG AA 4.5:1.`,
@@ -238,7 +233,7 @@ Bounding boxes must use percentages from 0 to 100.
         id: `f-palette-${Date.now()}`,
         ruleId: "RULE-PALETTE-02",
         ruleCitation:
-          "Brand Identity Manual §2.1: Primary brand color must match #4F46E5",
+          "Brand Identity Manual Â§2.1: Primary brand color must match #4F46E5",
         category: "visual",
         severity: "warning",
         message:
